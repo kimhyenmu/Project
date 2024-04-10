@@ -8,9 +8,9 @@ app.use(bodyParser.json());
 // MySQL 연결 설정
 const connection = mysql.createConnection({
   host: 'localhost',
-  user: 'your_username',
-  password: 'your_password',
-  database: 'your_database'
+  user: 'Pro',
+  password: '123456',
+  database: 'first'
 });
 
 // To-Do 항목 생성
