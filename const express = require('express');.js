@@ -76,3 +76,75 @@ app.delete('/todos/:id', (req, res) => {
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
 });
+
+
+// todo-service.test.js
+const TodoService = require('./todo-service');
+const TodoModel = require('./todo-model');
+
+jest.mock('./todo-model');
+
+describe('TodoService', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return all todos', async () => {
+    const mockTodos = [
+      { id: 1, title: 'Todo 1', completed: false },
+      { id: 2, title: 'Todo 2', completed: true },
+    ];
+    TodoModel.find.mockResolvedValue(mockTodos);
+
+    const todos = await TodoService.get();
+
+    expect(todos).toEqual(mockTodos);
+    expect(TodoModel.find).toHaveBeenCalledTimes(1);
+  });
+});
+
+// app.test.js
+const request = require('supertest');
+const app = require('./app');
+
+describe('GET /todo', () => {
+  it('should return all todos', async () => {
+    const response = await request(app).get('/todo');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([
+      { id: 1, title: 'Todo 1', completed: false },
+      { id: 2, title: 'Todo 2', completed: true },
+    ]);
+  });
+});
+
+// todo-service.test.js
+describe('TodoService', () => {
+  // ...
+
+  it('should create a new todo', async () => {
+    const mockTodo = { title: 'New Todo', completed: false };
+    TodoModel.create.mockResolvedValue(mockTodo);
+
+    const createdTodo = await TodoService.create(mockTodo);
+
+    expect(createdTodo).toEqual(mockTodo);
+    expect(TodoModel.create).toHaveBeenCalledWith(mockTodo);
+  });
+
+  // Similarly, write unit tests for update and delete functions
+});
+
+// app.test.js
+describe('POST /todo', () => {
+  it('should create a new todo', async () => {
+    const newTodo = { title: 'New Todo', completed: false };
+    const response = await request(app).post('/todo').send(newTodo);
+
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual(newTodo);
+  });
+});
+
+// Similarly, write integration tests for PUT and DELETE endpoints
