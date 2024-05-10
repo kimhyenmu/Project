@@ -1,6 +1,8 @@
 const express = require('express');
 const mysql = require('mysql');
 const bodyParser = require('body-parser');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(bodyParser.json());
@@ -12,6 +14,91 @@ const connection = mysql.createConnection({
   password: '123456',
   database: 'first'
 });
+
+// 회원가입 API
+app.post('/signup', async (req, res) => {
+  const { id, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const query = 'INSERT INTO users (id, password) VALUES (?, ?)';
+  connection.query(query, [id, hashedPassword], (error, results) => {
+    if (error) {
+      res.status(500).json({ error: 'Failed to create user' });
+    } else {
+      res.status(201).json({ message: 'User created successfully' });
+    }
+  });
+});
+
+// 로그인 API
+app.post('/signin', (req, res) => {
+  const { id, password } = req.body;
+  const query = 'SELECT * FROM users WHERE id = ?';
+  connection.query(query, [id], async (error, results) => {
+    if (error) {
+      res.status(500).json({ error: 'Failed to fetch user' });
+    } else if (results.length === 0) {
+      res.status(401).json({ error: 'Invalid credentials' });
+    } else {
+      const user = results[0];
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        res.status(401).json({ error: 'Invalid credentials' });
+      } else {
+        const accessToken = jwt.sign({ id: user.id }, 'access-secret', { expiresIn: '5m' });
+        const refreshToken = jwt.sign({ id: user.id }, 'refresh-secret', { expiresIn: '14d' });
+        const updateQuery = 'UPDATE users SET refresh_token = ? WHERE id = ?';
+        connection.query(updateQuery, [refreshToken, user.id], (error) => {
+          if (error) {
+            res.status(500).json({ error: 'Failed to update refresh token' });
+          } else {
+            res.json({ accessToken, refreshToken });
+          }
+        });
+      }
+    }
+  });
+});
+
+// 토큰 갱신 API
+app.post('/refresh', (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'Refresh token not provided' });
+  }
+  const query = 'SELECT * FROM users WHERE refresh_token = ?';
+  connection.query(query, [refreshToken], (error, results) => {
+    if (error) {
+      res.status(500).json({ error: 'Failed to fetch user' });
+    } else if (results.length === 0) {
+      res.status(403).json({ error: 'Invalid refresh token' });
+    } else {
+      const user = results[0];
+      jwt.verify(refreshToken, 'refresh-secret', (err, decoded) => {
+        if (err) {
+          return res.status(403).json({ error: 'Invalid refresh token' });
+        }
+        const accessToken = jwt.sign({ id: user.id }, 'access-secret', { expiresIn: '5m' });
+        res.json({ accessToken });
+      });
+    }
+  });
+});
+
+// 인증 미들웨어
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Access token not provided' });
+  }
+  jwt.verify(token, 'access-secret', (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid access token' });
+    }
+    req.user = user;
+    next();
+  });
+}
 
 // To-Do 항목 생성
 app.post('/todos', (req, res) => {
@@ -148,3 +235,9 @@ describe('POST /todo', () => {
 });
 
 // Similarly, write integration tests for PUT and DELETE endpoints
+const express = require('express');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const app = express();
+app.use(express.json()); 
