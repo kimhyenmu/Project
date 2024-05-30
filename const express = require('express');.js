@@ -241,3 +241,63 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json()); 
+const express = require('express');
+const { google } = require('googleapis');
+const { OAuth2Client } = require('google-auth-library');
+
+const app = express();
+
+// Google OAuth 2.0 설정
+const clientId = '';
+const clientSecret = '';
+const redirectUri = '';
+const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
+
+// 구글 캘린더 API 초기화
+const calendar = google.calendar({
+  version: 'v3',
+  auth: oauth2Client,
+});
+
+// 새로운 일정 추가 API
+app.post('/todoWithGoogleCalendar', async (req, res) => {
+  try {
+    // 인증 토큰 획득
+    const { tokens } = await oauth2Client.getToken(req.body.code);
+    oauth2Client.setCredentials(tokens);
+
+    // 새로운 일정 데이터
+    const { start, end, summary, description } = req.body;
+
+    // 구글 캘린더에 일정 추가
+    const event = {
+      summary,
+      description,
+      start: {
+        dateTime: start,
+        timeZone: 'Asia/Seoul',
+      },
+      end: {
+        dateTime: end,
+        timeZone: 'Asia/Seoul',
+      },
+    };
+
+    const response = await calendar.events.insert({
+      calendarId: 'primary',
+      resource: event,
+    });
+
+    // 로컬 데이터베이스에 일정 저장
+    // ...
+
+    res.status(200).json({ message: '일정이 추가되었습니다.' });
+  } catch (error) {
+    console.error('Error adding event:', error);
+    res.status(500).json({ error: '일정 추가에 실패했습니다.' });
+  }
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
