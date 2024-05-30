@@ -248,9 +248,9 @@ const { OAuth2Client } = require('google-auth-library');
 const app = express();
 
 // Google OAuth 2.0 설정
-const clientId = '';
+const clientId = '450788898724-ss46is3ug3ko7n46knqfsb3dt3ih8fo7.apps.googleusercontent.com';
 const clientSecret = '';
-const redirectUri = '';
+const redirectUri = 'http://www.localhost3000.com';
 const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri);
 
 // 구글 캘린더 API 초기화
